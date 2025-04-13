@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Recept</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Alla Recept</h1>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>ID</th> 
+        <th>Namn</th>
+        <th>Ingredienser</th>
+        <th>Steg</th>
+        <th>Ursprung</th>
+        <th>Tid</th>
+        <th>Styrka</th>
+        <th>Ta bort</th>
+        <th>Redigera</th>
+
+
+      </tr>
+    </thead>
+    <tbody id="recipe-table-body">
+      <!-- Receptdata kommer att läggas in här med JavaScript -->
+    </tbody>
+  </table>
+
+  <h2>Lägg till nytt recept</h2>
+  <form id="recipe-form">
+    <label>Namn: <input type="text" name="name" required></label><br><br>
+    <label>Ingredienser: <input type="text" name="ingredients" required></label><br><br>
+    <label>Steg: <input type="text" name="preparationSteps" required></label><br><br>
+    <label>Tillagningstid (minuter): <input type="number" name="cookingTime" required></label><br><br>
+    <label>Ursprung: <input type="text" name="origin" required></label><br><br>
+    <label>Styrka: <input type="text" name="spiceLevel"></label><br><br>
+    <button type="submit">Lägg till recept</button>
+  </form>
+  
+  <script>
+let currentEditId = null;
+
+     function deleteRecipe(id) {
+  if (confirm('Är du säker på att du vill ta bort detta recept?')) {
+    fetch(`http://localhost:5000/api/dishes/${id}`, {
+      method: 'DELETE'
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Gick inte att ta bort');
+      alert('Recept borttaget!');
+      location.reload(); // Ladda om sidan så att receptet försvinner
+    })
+    .catch(err => alert('Fel: ' + err.message));
+  }
+}
+    // Hämta alla recept från API:et och visa i tabellen
+    fetch('http://localhost:5000/api/dishes')
+      .then(response => response.json())
+      .then(data => {
+        const tbody = document.getElementById('recipe-table-body');
+        data.forEach(dish => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+           <td>${dish.dishId || ''}</td>
+            <td>${dish.name}</td>
+            <td>${dish.ingredients.join(', ')}</td>
+            <td>${dish.preparationSteps.join('<br>')}</td>
+            <td>${dish.origin}</td>
+            <td>${dish.cookingTime} min</td>
+            <td>${dish.spiceLevel}</td>
+            <td><button onclick="deleteRecipe('${dish._id}')">🗑️</button></td>
+            <td><button onclick="editRecipe('${dish._id}')">✏️</button></td>
+          `;
+          tbody.appendChild(row);
+        });
+      })
+      .catch(error => console.error('Fel vid hämtning av recept:', error));
+      // Hantera formuläret för att lägga till nytt recept
+document.getElementById('recipe-form').addEventListener('submit', function (e) {
+  e.preventDefault(); // Stoppar sidan från att laddas om
+
+  const form = e.target;
+  const newRecipe = {
+    name: form.name.value,
+    ingredients: form.ingredients.value.split(',').map(s => s.trim()),
+    preparationSteps: form.preparationSteps.value.split(',').map(s => s.trim()),
+    cookingTime: parseInt(form.cookingTime.value),
+    origin: form.origin.value,
+    spiceLevel: form.spiceLevel.value
+  };
+
+
+  const url = currentEditId
+  ? `http://localhost:5000/api/dishes/${currentEditId}`
+  : 'http://localhost:5000/api/dishes';
+
+const method = currentEditId ? 'PUT' : 'POST';
+
+fetch(url, {
+  method: method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(newRecipe)
+})
+.then(res => {
+  if (!res.ok) throw new Error('Kunde inte spara ändringar');
+  alert(currentEditId ? 'Recept uppdaterat!' : 'Recept tillagt!');
+  currentEditId = null;
+  form.reset();
+  location.reload();
+})
+
+});
+function editRecipe(id) {
+  fetch(`http://localhost:5000/api/dishes/${id}`)
+    .then(res => res.json())
+    .then(dish => {
+      const form = document.getElementById('recipe-form');
+      form.name.value = dish.name;
+      form.ingredients.value = dish.ingredients.join(', ');
+      form.preparationSteps.value = dish.preparationSteps.join(', ');
+      form.cookingTime.value = dish.cookingTime;
+      form.origin.value = dish.origin;
+      form.spiceLevel.value = dish.spiceLevel;
+      currentEditId = id;
+    });
+}
+
+
+  </script>
+</body>
+</html>
